@@ -1,57 +1,60 @@
-const express = require('express');
-const path = require('path');
-const session = require('express-session');
-require('dotenv').config();
-
-const app = express();
-
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.use(session({
-  secret: 'dogwalksecret',
-  resave: false,
-  saveUninitialized: false
-}));
-
-// Import database
-const db = require('./models/db');
-
-// POST /login
-app.post('/api/users/login', async (req, res) => {
-  const { username, password } = req.body;
-
-  try {
-    const [rows] = await db.query(
-      'SELECT user_id, username, role FROM Users WHERE username = ? AND password_hash = ?',
-      [username, password]
-    );
-
-    if (rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    req.session.user = {
-      id: rows[0].user_id,
-      username: rows[0].username,
-      role: rows[0].role
-    };
-
-    res.json({ message: 'Login successful', user: rows[0] });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Server error' });
+// API: Get dogs for logged-in owner
+app.get('/api/dogs', (req, res) => {
+  if (!req.session.user || req.session.user.role !== 'owner') {
+    return res.status(403).send('Forbidden');
   }
+
+  db.query('SELECT dog_id, name FROM dogs WHERE owner_id = ?', [req.session.user.id], (err, results) => {
+    if (err) return res.status(500).send('DB error');
+    res.json(results);
+  });
 });
 
-// Routes
-const walkRoutes = require('./routes/walkRoutes');
-const userRoutes = require('./routes/userRoutes');
 
-app.use('/api/walks', walkRoutes);
-app.use('/api/users', userRoutes);
+// ✅ Add walk request route
+app.post('/api/walks', (req, res) => {
+  const user = req.session.user;
+  if (!user || user.role !== 'owner') {
+    return res.status(403).send('Forbidden');
+  }
 
-// Export
-module.exports = app;
+  const { dog_id, requested_time, duration, location } = req.body;
+  const status = 'open';
+
+  db.query(
+    'INSERT INTO walks (dog_id, requested_time, duration, location, status) VALUES (?, ?, ?, ?, ?)',
+    [dog_id, requested_time, duration, location, status],
+    (err, result) => {
+      if (err) return res.status(500).send('Database error');
+      res.json({ success: true, id: result.insertId });
+    }
+  );
+});
+
+
+// ✅ Get all walk requests for the owner
+app.get('/api/my-walks', (req, res) => {
+  const user = req.session.user;
+  if (!user || user.role !== 'owner') {
+    return res.status(403).send('Forbidden');
+  }
+
+  db.query(
+    `SELECT w.*, d.name AS dog_name, d.size
+     FROM walks w
+     JOIN dogs d ON w.dog_id = d.dog_id
+     WHERE d.owner_id = ?
+     ORDER BY w.request_id DESC`,
+    [user.id],
+    (err, results) => {
+      if (err) return res.status(500).send('DB error');
+      res.json(results);
+    }
+  );
+});
+
+
+// Default route
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});

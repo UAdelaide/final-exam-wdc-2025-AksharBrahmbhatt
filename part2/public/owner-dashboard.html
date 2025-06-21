@@ -1,48 +1,129 @@
-<!-- public/owner-dashboard.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Owner Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <title>Owner Dashboard - Dog Walking Service</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="bg-white p-4">
-  <div class="container">
-    <h1 class="mb-4 text-primary">Welcome Owner 👋</h1>
-    <p>Here’s the current list of users:</p>
-    <table class="table table-bordered">
-      <thead class="table-light">
-        <tr>
-          <th>User ID</th>
-          <th>Username</th>
-          <th>Email</th>
-          <th>Role</th>
-          <th>Created At</th>
-        </tr>
-      </thead>
-      <tbody id="user-table-body"></tbody>
-    </table>
+<body class="bg-light">
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="text-primary">Create New Walk Request</h1>
+      <button onclick="logout()" class="btn btn-danger">Logout</button>
+    </div>
+
+    <div class="card p-4">
+      <form id="walkForm">
+        <label for="dogSelect" class="form-label">Select Your Dog</label>
+        <select id="dogSelect" class="form-select" required>
+          <option disabled selected>-- Choose a dog --</option>
+        </select>
+
+        <label for="datetime" class="form-label mt-3">Requested Date & Time</label>
+        <input id="datetime" type="datetime-local" class="form-control" required>
+
+        <label for="duration" class="form-label mt-3">Duration (minutes)</label>
+        <input id="duration" type="number" class="form-control" required>
+
+        <label for="location" class="form-label mt-3">Location</label>
+        <input id="location" type="text" class="form-control" required>
+
+        <button type="submit" class="btn btn-success mt-3">Create Walk</button>
+      </form>
+    </div>
+
+    <h3 class="mt-5">My Walk Requests</h3>
+    <div id="walkList" class="mt-3"></div>
   </div>
 
   <script>
-    fetch('/api/users')
-      .then(res => res.json())
-      .then(users => {
-        const tbody = document.getElementById('user-table-body');
-        users.forEach(user => {
-          const row = `<tr>
-            <td>${user.user_id}</td>
-            <td>${user.username}</td>
-            <td>${user.email}</td>
-            <td>${user.role}</td>
-            <td>${user.created_at}</td>
-          </tr>`;
-          tbody.innerHTML += row;
+    // Load owner’s dogs into dropdown
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/dogs');
+        const dogs = await res.json();
+        const select = document.getElementById('dogSelect');
+
+        dogs.forEach(dog => {
+          const opt = document.createElement('option');
+          opt.value = dog.dog_id;
+          opt.textContent = dog.name;
+          select.appendChild(opt);
         });
-      })
-      .catch(err => {
-        console.error('Failed to fetch users:', err);
-      });
+
+        loadWalks();
+      } catch (err) {
+        console.error('Error loading dogs:', err);
+      }
+    });
+
+    // Submit walk form
+    document.getElementById('walkForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const dog_id = document.getElementById('dogSelect').value;
+      const requested_time = document.getElementById('datetime').value;
+      const duration = document.getElementById('duration').value;
+      const location = document.getElementById('location').value;
+
+      try {
+        const res = await fetch('/api/walks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dog_id, requested_time, duration, location })
+        });
+
+        if (res.ok) {
+          alert('Walk created successfully');
+          document.getElementById('walkForm').reset();
+          loadWalks();
+        } else {
+          alert('Error creating walk');
+        }
+      } catch (err) {
+        console.error('Walk creation error:', err);
+      }
+    });
+
+    // Load all walks
+    async function loadWalks() {
+      try {
+        const res = await fetch('/api/my-walks');
+        const walks = await res.json();
+        const list = document.getElementById('walkList');
+        list.innerHTML = '';
+
+        if (walks.length === 0) {
+          list.innerHTML = '<p>No walk requests found.</p>';
+          return;
+        }
+
+        walks.forEach(walk => {
+          const div = document.createElement('div');
+          div.className = 'card mb-2';
+          div.innerHTML = `
+            <div class="card-body">
+              <h5 class="card-title">${walk.dog_name} (${walk.size})</h5>
+              <p class="card-text">
+                <strong>Time:</strong> ${new Date(walk.requested_time).toLocaleString()}<br>
+                <strong>Duration:</strong> ${walk.duration} minutes<br>
+                <strong>Location:</strong> ${walk.location}<br>
+                <strong>Status:</strong> ${walk.status}
+              </p>
+            </div>`;
+          list.appendChild(div);
+        });
+      } catch (err) {
+        console.error('Error loading walks:', err);
+      }
+    }
+
+    function logout() {
+      fetch('/logout', { method: 'POST' })
+        .then(() => window.location.href = 'index.html')
+        .catch(err => console.error('Logout error:', err));
+    }
   </script>
 </body>
 </html>
