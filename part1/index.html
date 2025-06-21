@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dog Info Hub</title>
+  <script src="https://unpkg.com/vue@3"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #fff;
+      color: #333;
+    }
+
+    header {
+      background-color: #ffcc00;
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      margin: 0;
+    }
+
+    main {
+      padding: 2rem;
+    }
+
+    .blue-box {
+      margin-top: 2rem;
+      background-color: #0d47a1;
+      color: white;
+      padding: 2rem;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .dog-image {
+      width: 100%;
+      max-width: 300px;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+
+    .button {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.7rem 1.4rem;
+      font-size: 1rem;
+      border: 2px solid #0d47a1;
+      border-radius: 6px;
+      background-color: #fff;
+      color: #0d47a1;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.3s ease;
+    }
+
+    .button:hover {
+      background-color: #e3f2fd;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.9rem;
+      padding: 1rem;
+      color: #666;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Dog Info Hub 🐾</h1>
+    <div></div>
+  </header>
+
+  <main id="app">
+    <div class="blue-box">
+      <h2>What is the right dog for you?</h2>
+      <p>Click below to see a random cute dog!</p>
+      <button class="button" @click="getDog">Show Me a Dog 🐕</button>
+
+      <div v-if="dogUrl">
+        <img class="dog-image" :src="dogUrl" alt="Hound Dog" />
+        <p style="margin-top: 1rem;"><strong>Name:</strong> {{ dogName }}</p>
+        <p><strong>Breed:</strong> Hound</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    &copy; 2025 Dog Walk Web App | Simple Demo
+  </footer>
+
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          dogUrl: '',
+          dogName: '',
+          dogNames: ['Max', 'Bella', 'Rocky', 'Luna', 'Cooper', 'Daisy', 'Buddy', 'Milo']
+        };
+      },
+      methods: {
+        async getDog() {
+          const res = await fetch('https://dog.ceo/api/breed/hound/images');
+          const data = await res.json();
+          const randomIndex = Math.floor(Math.random() * data.message.length);
+          this.dogUrl = data.message[randomIndex];
+          this.dogName = this.dogNames[Math.floor(Math.random() * this.dogNames.length)];
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
